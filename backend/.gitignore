@@ -1,0 +1,5 @@
+.env
+.slc_secrets
+__pycache__/
+*.pyc
+.venv/
