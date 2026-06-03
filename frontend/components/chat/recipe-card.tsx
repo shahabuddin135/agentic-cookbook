@@ -3,8 +3,16 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Clock, Users, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { RecipeDialog } from "@/components/chat/recipe-dialog";
+import {
+  Clock,
+  Users,
+  ExternalLink,
+  Maximize2,
+  Copy,
+  Check,
+} from "lucide-react";
 import type { RecipeResponse } from "@/types";
 
 interface RecipeCardProps {
@@ -14,23 +22,44 @@ interface RecipeCardProps {
 export function RecipeCard({ data }: RecipeCardProps) {
   const { recipe, image, message } = data;
   const [imgError, setImgError] = useState(false);
+  const [copied, setCopied] = useState(false);
   const showHero = Boolean(image?.url) && !imgError;
 
+  /* Plain-text reply (no structured recipe) — render as a simple agent note. */
   if (!recipe) {
     return (
-      <Card className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur border-0 shadow-lg">
-        <CardContent className="p-6">
-          <p className="text-foreground">{message}</p>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl rounded-tl-md bg-card neu-flat p-4 md:p-5 text-sm md:text-base leading-relaxed text-foreground/90">
+        {message}
+      </div>
     );
   }
 
+  async function handleCopy() {
+    if (!recipe) return;
+    const text = [
+      recipe.title,
+      "",
+      "Ingredients:",
+      ...recipe.ingredients.map((i) => `• ${i}`),
+      "",
+      "Instructions:",
+      ...recipe.instructions.map((s, i) => `${i + 1}. ${s}`),
+      recipe.source_url ? `\nSource: ${recipe.source_url}` : "",
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable — silently ignore */
+    }
+  }
+
   return (
-    <Card className="overflow-hidden bg-white/60 dark:bg-neutral-800/60 backdrop-blur border-0 shadow-xl group">
-      {/* Hero Image */}
+    <div className="group overflow-hidden rounded-2xl rounded-tl-md bg-card neu-flat">
+      {/* ── Hero image ── */}
       {showHero && image && (
-        <div className="relative h-56 sm:h-64 w-full overflow-hidden">
+        <div className="relative h-52 w-full overflow-hidden sm:h-60">
           <Image
             src={image.url}
             alt={image.alt || recipe.title}
@@ -40,50 +69,44 @@ export function RecipeCard({ data }: RecipeCardProps) {
             onError={() => setImgError(true)}
             unoptimized
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <div className="absolute bottom-4 left-4 right-4">
-            <h3 className="text-xl sm:text-2xl font-bold text-white drop-shadow-lg leading-tight">
-              {recipe.title}
-            </h3>
-          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          <h3 className="absolute inset-x-4 bottom-4 text-xl font-bold leading-tight text-white drop-shadow-lg sm:text-2xl">
+            {recipe.title}
+          </h3>
           {image.photographer && (
-            <div className="absolute top-3 right-3">
-              <a
-                href={image.photographer_url ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] text-white/70 bg-black/40 px-2 py-1 rounded-full backdrop-blur-sm hover:text-white transition-colors"
-              >
-                📷 {image.photographer}
-              </a>
-            </div>
+            <a
+              href={image.photographer_url ?? "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute right-3 top-3 rounded-full bg-black/40 px-2 py-1 text-[10px] text-white/70 backdrop-blur-sm transition-colors hover:text-white"
+            >
+              📷 {image.photographer}
+            </a>
           )}
         </div>
       )}
 
-      <CardContent className="p-5 sm:p-6 space-y-5">
-        {/* Title — shown here when there is no hero image (or it failed to load) */}
+      <div className="space-y-5 p-5 sm:p-6">
         {!showHero && (
-          <h3 className="text-xl sm:text-2xl font-bold leading-tight">
+          <h3 className="text-xl font-bold leading-tight sm:text-2xl">
             {recipe.title}
           </h3>
         )}
 
-        {/* Message */}
         {message && (
-          <p className="text-sm text-muted-foreground italic">{message}</p>
+          <p className="text-sm italic text-muted-foreground">{message}</p>
         )}
 
-        {/* Meta Badges */}
+        {/* ── Meta badges ── */}
         <div className="flex flex-wrap gap-2">
           {recipe.prep_time && (
             <Badge variant="secondary" className="gap-1">
-              <Clock className="h-3 w-3" /> Prep: {recipe.prep_time}
+              <Clock className="h-3 w-3" /> Prep {recipe.prep_time}
             </Badge>
           )}
           {recipe.cook_time && (
             <Badge variant="secondary" className="gap-1">
-              <Clock className="h-3 w-3" /> Cook: {recipe.cook_time}
+              <Clock className="h-3 w-3" /> Cook {recipe.cook_time}
             </Badge>
           )}
           {recipe.servings && (
@@ -92,43 +115,44 @@ export function RecipeCard({ data }: RecipeCardProps) {
             </Badge>
           )}
           {recipe.tags?.map((tag) => (
-            <Badge key={tag} variant="outline" className="text-orange-600 border-orange-300 dark:border-orange-700 dark:text-orange-400">
+            <Badge
+              key={tag}
+              variant="outline"
+              className="border-orange-300 text-orange-600 dark:border-orange-700 dark:text-orange-400"
+            >
               {tag}
             </Badge>
           ))}
         </div>
 
-        {/* Description */}
         {recipe.description && (
           <p className="text-sm text-foreground/80">{recipe.description}</p>
         )}
 
-        {/* Two-Column: Ingredients | Instructions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Ingredients */}
+        {/* ── Ingredients | Instructions ── */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-3">
+            <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">
               Ingredients
             </h4>
             <ul className="space-y-1.5">
               {recipe.ingredients.map((ing, i) => (
-                <li key={i} className="text-sm flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-orange-400" />
                   {ing}
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Instructions */}
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-3">
+            <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">
               Instructions
             </h4>
             <ol className="space-y-3">
               {recipe.instructions.map((step, i) => (
-                <li key={i} className="text-sm flex gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30 text-xs font-bold text-orange-700 dark:text-orange-300">
+                <li key={i} className="flex gap-3 text-sm">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
                     {i + 1}
                   </span>
                   <span className="pt-0.5">{step}</span>
@@ -138,18 +162,48 @@ export function RecipeCard({ data }: RecipeCardProps) {
           </div>
         </div>
 
-        {/* Source URL */}
-        {recipe.source_url && (
-          <a
-            href={recipe.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        {/* ── Action toolbar ── */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
+          <RecipeDialog
+            recipe={recipe}
+            image={image}
+            trigger={
+              <Button
+                size="sm"
+                className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600"
+              >
+                <Maximize2 className="h-3.5 w-3.5" /> Cook mode
+              </Button>
+            }
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCopy}
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
           >
-            <ExternalLink className="h-3 w-3" /> View original recipe
-          </a>
-        )}
-      </CardContent>
-    </Card>
+            {copied ? (
+              <>
+                <Check className="h-3.5 w-3.5 text-emerald-500" /> Copied
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5" /> Copy
+              </>
+            )}
+          </Button>
+          {recipe.source_url && (
+            <a
+              href={recipe.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ExternalLink className="h-3 w-3" /> Source
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

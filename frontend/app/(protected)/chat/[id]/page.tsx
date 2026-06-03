@@ -7,20 +7,20 @@ import { useConversation } from "@/hooks/use-conversations";
 import { useChatStore } from "@/store/chat-store";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChatWindow } from "@/components/chat/chat-window";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2 } from "lucide-react";
+import { ChatComposer } from "@/components/chat/chat-composer";
+import { AgentAvatar } from "@/components/chat/agent";
 import type { Message } from "@/types";
 
 export default function ConversationPage() {
   const params = useParams();
   const conversationId = params.id as string;
   const queryClient = useQueryClient();
-  const { sendMessage, error } = useChat();
+  const { sendMessage, error, clearError } = useChat();
   const { isStreaming, setActiveConversation } = useChatStore();
   const { data, isLoading } = useConversation(conversationId);
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [lastSent, setLastSent] = useState("");
 
   useEffect(() => {
     setActiveConversation(conversationId);
@@ -35,19 +35,22 @@ export default function ConversationPage() {
 
   const handleSend = useCallback(
     async (text: string) => {
-      if (!text.trim() || isStreaming) return;
+      const trimmed = text.trim();
+      if (!trimmed || isStreaming) return;
+      clearError();
+      setLastSent(trimmed);
       const userMsg: Message = {
         id: crypto.randomUUID(),
         conversation_id: conversationId,
         role: "user",
-        content: text.trim(),
+        content: trimmed,
         created_at: new Date().toISOString(),
       };
       setLocalMessages((prev) => [...prev, userMsg]);
       setInput("");
 
       try {
-        const result = await sendMessage(text.trim(), conversationId);
+        const result = await sendMessage(trimmed, conversationId);
         const assistantMsg: Message = {
           id: result.messageId,
           conversation_id: result.conversationId,
@@ -60,55 +63,33 @@ export default function ConversationPage() {
         setLocalMessages((prev) => [...prev, assistantMsg]);
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
       } catch {
-        // error handled by hook
+        // error surfaced via the hook
       }
     },
-    [isStreaming, sendMessage, conversationId, queryClient]
+    [isStreaming, sendMessage, clearError, conversationId, queryClient]
   );
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend(input);
-    }
-  }
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <AgentAvatar size="lg" active />
+        <p className="text-sm text-muted-foreground">Loading your conversation…</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 h-full overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <ChatWindow messages={allMessages} isStreaming={isStreaming} />
-
-      {/* Input Bar */}
-      <div className="border-t border-border bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg p-4">
-        <div className="max-w-2xl mx-auto flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask for another recipe..."
-            disabled={isStreaming}
-            rows={1}
-            className="resize-none min-h-[44px] max-h-32 bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700"
-          />
-          <Button
-            onClick={() => handleSend(input)}
-            disabled={!input.trim() || isStreaming}
-            className="shrink-0 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md px-4"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-        {error && (
-          <p className="text-sm text-red-500 text-center mt-2">{error}</p>
-        )}
-      </div>
+      <ChatComposer
+        value={input}
+        onChange={setInput}
+        onSend={handleSend}
+        busy={isStreaming}
+        error={error}
+        onRetry={lastSent ? () => handleSend(lastSent) : undefined}
+        placeholder="Ask for another recipe…"
+      />
     </div>
   );
 }

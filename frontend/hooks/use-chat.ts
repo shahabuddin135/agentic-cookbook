@@ -19,8 +19,10 @@ export function useChat() {
   const sendMessage = useCallback(
     async (message: string, conversationId?: string): Promise<SendResult> => {
       setError(null);
-      setStreaming(true);
+      // resetStream() clears isStreaming, so flip streaming ON afterwards —
+      // otherwise the agent response state never shows during the stream.
       resetStream();
+      setStreaming(true);
 
       try {
         const response = await apiFetch("/api/agent/chat", {
