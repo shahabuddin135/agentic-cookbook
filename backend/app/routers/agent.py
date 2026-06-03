@@ -10,6 +10,7 @@ from app.database import AsyncSessionDep
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.agent.agent import create_recipe_agent
+from app.agent.guardrails import check_input_guardrails, check_output_guardrails
 from app.middleware.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -109,16 +110,18 @@ async def agent_chat(
 
     async def event_stream():
         try:
-            agent = create_recipe_agent(mcp_servers)
-            # Streaming run so we can surface friendly progress while the agent
-            # uses its tools. The recipe itself is still a single structured JSON
-            # payload assembled from result.final_output at the end.
-            result = Runner.run_streamed(agent, input=body.message)
+            input_err = check_input_guardrails(body.message)
+            if input_err:
+                yield _sse({"type": "status", "message": "Analyzing request…"})
+                parsed = {"message": input_err, "recipe": None, "image": None}
+            else:
+                agent = create_recipe_agent(mcp_servers)
+                result = Runner.run_streamed(agent, input=body.message)
 
-            last_status = "Searching for the perfect recipe…"
-            yield _sse({"type": "status", "message": last_status})
+                last_status = "Searching for the perfect recipe…"
+                yield _sse({"type": "status", "message": last_status})
 
-            async for event in result.stream_events():
+                async for event in result.stream_events():
                 if event.type == "run_item_stream_event" and event.name == "tool_called":
                     name = _tool_display_name(event.item)
                     msg = (
@@ -142,9 +145,13 @@ async def agent_chat(
                         last_status = "Writing your recipe…"
                         yield _sse({"type": "status", "message": last_status})
 
-            yield _sse({"type": "status", "message": "Plating your recipe…"})
-
-            parsed = extract_recipe_payload(result.final_output)
+                yield _sse({"type": "status", "message": "Plating your recipe…"})
+                
+                out_err = check_output_guardrails(result.final_output)
+                if out_err:
+                    parsed = {"message": out_err, "recipe": None, "image": None}
+                else:
+                    parsed = extract_recipe_payload(result.final_output)
 
             assistant_msg_id = str(uuid4())
             assistant_msg = Message(
