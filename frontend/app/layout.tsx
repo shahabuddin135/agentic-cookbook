@@ -40,3 +40,11 @@ export default function RootLayout({
     </html>
   );
 }
+{ children }
+          <CookieBanner />
+          <Toaster richColors position="top-right" />
+        </Providers >
+      </body >
+    </html >
+  );
+}

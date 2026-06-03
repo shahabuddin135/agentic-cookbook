@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-// Next 16 renamed `middleware` → `proxy` (nodejs runtime only). Optimistic auth
-// gate: redirect unauthenticated users away from protected routes and signed-in
-// users away from the auth pages. The backend JWT verification is the real gate.
+export const runtime = "nodejs";
+
 export async function proxy(request: NextRequest) {
   const session = getSessionCookie(request);
 

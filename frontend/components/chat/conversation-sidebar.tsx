@@ -74,11 +74,10 @@ export function ConversationSidebar() {
               tabIndex={0}
               onKeyDown={(e) => { if (e.key === "Enter") handleSelect(conv.id); }}
               onClick={() => handleSelect(conv.id)}
-              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-colors group cursor-pointer ${
-                activeId === conv.id
+              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-colors group cursor-pointer ${activeId === conv.id
                   ? "bg-orange-100 dark:bg-orange-900/20 text-orange-900 dark:text-orange-200"
                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800 text-foreground"
-              }`}
+                }`}
             >
               <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">

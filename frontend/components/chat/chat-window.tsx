@@ -13,6 +13,7 @@ interface ChatWindowProps {
 
 export function ChatWindow({ messages, isStreaming }: ChatWindowProps) {
   const streamStatus = useChatStore((s) => s.streamStatus);
+  const streamingContent = useChatStore((s) => s.streamingContent);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change or streaming starts
