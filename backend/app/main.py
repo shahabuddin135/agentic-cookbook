@@ -46,6 +46,14 @@ app.include_router(conversations_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(consent_router, prefix="/api")
 
+@app.get("/")
+async def root():
+    return {
+        "message": "Welcome to the Agentic Cookbook API",
+        "docs": "/docs" if settings.DEBUG else "Docs are disabled in production",
+        "health": "/health"
+    }
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "version": "1.0.0"}
