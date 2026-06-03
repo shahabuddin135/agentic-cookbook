@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-export const runtime = "nodejs";
 
 export async function proxy(request: NextRequest) {
   const session = getSessionCookie(request);

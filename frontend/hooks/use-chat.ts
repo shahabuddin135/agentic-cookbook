@@ -12,7 +12,7 @@ interface SendResult {
 }
 
 export function useChat() {
-  const { setStreaming, resetStream, setActiveConversation, setStreamStatus } =
+  const { setStreaming, resetStream, setActiveConversation, setStreamStatus, appendStreamChunk } =
     useChatStore();
   const [error, setError] = useState<string | null>(null);
 
@@ -91,7 +91,7 @@ export function useChat() {
         setStreamStatus(null);
       }
     },
-    [setStreaming, resetStream, setActiveConversation, setStreamStatus]
+    [setStreaming, resetStream, setActiveConversation, setStreamStatus, appendStreamChunk]
   );
 
   return { sendMessage, error, clearError: () => setError(null) };
